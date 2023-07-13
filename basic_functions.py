@@ -42,15 +42,15 @@ def Euler_jnp(params):
 
 params_fixed = {
     "sigma": 10,
-    "beta": 8/3,
-    "rho": 28,
+    "beta": 1.5, 
+    "rho": 40,
     "length": int(1e05),
     "dt": .005
 }
 
-def change_param(new, param_to_change, params_old = params_fixed):
+def change_param(new_value, param_to_change, params_old = params_fixed):
     params_new = copy.deepcopy(params_old)
-    params_new[param_to_change] = new
+    params_new[param_to_change] = new_value
     return params_new
 
 #Contruct Markov matrix
@@ -69,16 +69,26 @@ def Markov_np(ys, sample, nt=1):
     transitions = point_idxs[nt:lp] - point_idxs[0:(lp - nt)]
     cellEdge = np.flatnonzero(transitions) + 1
 
-    # Build markov matrix
+    # # Build markov matrix
+    # M_mat = np.zeros((len(sample), len(sample)))
+    # ce = cellEdge[:-nt]
+    # indices = (point_idxs[ce], point_idxs[ce + nt])
+    # M_mat[indices] += 1
+
     M_mat = np.zeros((len(sample), len(sample)))
-    ce = cellEdge[:-nt]
-    indices = (point_idxs[ce], point_idxs[ce + nt])
-    M_mat[indices] += 1.
+    for ind in range(0, len(cellEdge) - nt):
+        ce = cellEdge[ind]
+        M_mat[point_idxs[ce],point_idxs[ce+nt]] += 1
 
     # Normalize rows
     row_sums = np.sum(M_mat, axis=1)
     nonzero_rows = np.nonzero(row_sums)
     M_mat[:, nonzero_rows] /= row_sums[nonzero_rows]
+        
+    # row_sums = np.sum(M_mat2, axis=1)
+    # for i in range(subset_size):
+    #     if row_sums[i] != 0:
+    #         M_mat2[:,i] = M_mat2[:,i]/row_sums[i]
 
     return M_mat
 
@@ -99,11 +109,16 @@ def Markov_jnp(ys, sample, nt=1):
     cellEdge = jnp.flatnonzero(transitions) + 1
 
     # Build markov matrix
-    M_mat = jnp.zeros((len(sample), len(sample)))
-    ce = cellEdge[:-nt]
-    indices = (point_idxs[ce], point_idxs[ce + nt])
-    M_mat = M_mat.at[indices].add(1.)
+    # M_mat = jnp.zeros((len(sample), len(sample)))
+    # ce = cellEdge[:-nt]
+    # indices = (point_idxs[ce], point_idxs[ce + nt])
+    # M_mat = M_mat.at[indices].add(1.)
 
+    M_mat = jnp.zeros((len(sample), len(sample)))
+    for ind in range(0, len(cellEdge) - nt):
+        ce = cellEdge[ind]
+        M_mat = M_mat.at[point_idxs[ce],point_idxs[ce+nt]].add(1)
+        
     # Normalize rows
     row_sums = jnp.sum(M_mat, axis=1)
     nonzero_rows = jnp.nonzero(row_sums)
